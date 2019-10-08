@@ -7,9 +7,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #define MAX_LINE 80 /* The maximum length command */
-/* Convert command to argv list */
+/* Convert command to args list */
 /* Get input, output, pipe mark position from the command */ 
-void  parse(char *line, char **argv, char** output, char** input, char*** pipePos)
+void  parse(char *line, char **args, char** output, char** input, char*** pipePos)
 {
      int get = 0;
      char* curLine;
@@ -18,7 +18,7 @@ void  parse(char *line, char **argv, char** output, char** input, char*** pipePo
           line++;
 
      while (*line != '\0') {       /* if not the end of line ....... */ 
-          *argv++ = line;          /* save the argument position*/
+          *args++ = line;          /* save the argument position*/
           curLine = line;
           while (*line != '\0' && *line != ' ' && 
                  *line != '\t' && *line != '\n') 
@@ -30,33 +30,33 @@ void  parse(char *line, char **argv, char** output, char** input, char*** pipePo
           if (strcmp(curLine, ">")==0)/* Has redirected output          */
           {
                get = 1;
-               *argv--; 
-               /*Remove output filename from then argv */
+               *args--; 
+               /*Remove output filename from then args */
           }
           else 
           if (strcmp(curLine, "<")==0)/* Has redirected input           */
           {
                get = 2;
-               *argv--;
-               /*Remove input filename from then argv */
+               *args--;
+               /*Remove input filename from then args */
           }
-          else if(get)             /* Get this argv to redirected    */
+          else if(get)             /* Get this args to redirected    */
           {
-               if (get == 1)       /* Get this argv to output        */
+               if (get == 1)       /* Get this args to output        */
                     *output = curLine;
-               if (get == 2)       /* Get this argv to input         */
+               if (get == 2)       /* Get this args to input         */
                     *input = curLine;
                get = 0;
-               *argv--;
+               *args--;
           }
           
           if(strcmp(curLine,"|")==0)
-               *pipePos = argv - 1; 
+               *pipePos = args - 1; 
      }
-     *argv = '\0';                /* The end of the argv is \0*/
+     *args = '\0';                /* The end of the args is \0*/
 }
 /* Execute the comand */     
-void  execute(char **argv,char* output, char* input, char** pipePos)
+void  execute(char **args,char* output, char* input, char** pipePos)
 {
      pid_t  pid;
      int    status;
@@ -81,7 +81,7 @@ void  execute(char **argv,char* output, char* input, char** pipePos)
           //If there is not a pipe mark then execute the command
           if (!pipePos)
                {
-                    if (execvp(*argv, argv) < 0) {     /* execute the command  */
+                    if (execvp(*args, args) < 0) {     /* execute the command  */
                          printf("*** ERROR: exec failed\n");
                          exit(1);
                     }
@@ -94,9 +94,9 @@ void  execute(char **argv,char* output, char* input, char** pipePos)
                          printf("Pipe filed\n");
                          exit(1);
                     }
-               /* Devide argv list into 2 argv list for each child */
+               /* Devide args list into 2 args list for each child */
                *pipePos = '\0';
-               char** argvPipe = pipePos +1;
+               char** argsPipe = pipePos +1;
                pid_t childPid = fork();
                if (childPid == 0)
                {
@@ -104,7 +104,7 @@ void  execute(char **argv,char* output, char* input, char** pipePos)
                     close(fd[0]);
                     //Redirected output to fd[0]
                     dup2(fd[1], 1);
-                    if (execvp(*argv, argv) < 0) {     /* execute the command  in child's child*/
+                    if (execvp(*args, args) < 0) {     /* execute the command  in child's child*/
                          printf("*** ERROR: exec failed\n");
                          exit(1);
                     }
@@ -118,7 +118,7 @@ void  execute(char **argv,char* output, char* input, char** pipePos)
                     while (wait(&status) != childPid)       /* wait for completion  */
                          ;
                     dup2(fd[0],0);
-                    if (execvp(*argvPipe, argvPipe) < 0) {     /* execute the command in child */
+                    if (execvp(*argsPipe, argsPipe) < 0) {     /* execute the command in child */
                          printf("*** ERROR: exec failed\n");
                          exit(1);
                     }
@@ -135,7 +135,7 @@ void  execute(char **argv,char* output, char* input, char** pipePos)
 void  main(void)
 {
      char  line[MAX_LINE];             /* the input command                 */
-     char  *argv[MAX_LINE/2 +1];              /* the command -> argument      */
+     char  *args[MAX_LINE/2 +1];              /* the command -> argument      */
      char backupLine[MAX_LINE];
      int backup = 0;
      while (1) { 
@@ -160,9 +160,9 @@ void  main(void)
                 strcpy(backupLine,line); /* if not then backup current command */
                 backup = 1;
             }
-          parse(line, argv, &output, &input, &pipePos);       /*   parse the line to argv               */
-          if (strcmp(argv[0], "exit") == 0)  /* if user type exit then exit     */
+          parse(line, args, &output, &input, &pipePos);       /*   parse the line to args               */
+          if (strcmp(args[0], "exit") == 0)  /* if user type exit then exit     */
                exit(0);            
-          execute(argv,output,input,pipePos);           /* execute command */
+          execute(args,output,input,pipePos);           /* execute command */
      }
 }
