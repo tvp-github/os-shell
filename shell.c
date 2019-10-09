@@ -56,8 +56,9 @@ void  parse(char *line, char **args, char** output, char** input, char*** pipePo
      *args = '\0';                /* The end of the args is \0*/
 }
 /* Execute the comand */     
-void  execute(char **args,char* output, char* input, char** pipePos)
+void  execute(char **args,char* output, char* input, char** pipePos, int waitForChild)
 {
+     // Check for & in the end of command
      pid_t  pid;
      int    status;
      pid = fork(); /*fork a process*/
@@ -126,9 +127,9 @@ void  execute(char **args,char* output, char* input, char** pipePos)
                }
           }
      }
-     else {                                  /* parent process      */
-          while (wait(&status) != pid)       /* wait for child completion  */
-               ;
+     else {                                   /* parent process      */
+          if(waitForChild)
+          while (wait(&status) != pid);       /* wait for child completion  */
      }
 }
      
@@ -143,11 +144,18 @@ void  main(void)
           char** pipePos;
           char* input;
           char* output;
+          int waitForChild;
           input = output = NULL;
-          pipePos = NULL;                  
+          pipePos = NULL;      
+          waitForChild = 1;            
           printf("osh> ");     /*   display prompt             */
           fgets(line, MAX_LINE, stdin);       /*   read the command    */
           line[strlen(line)-1] = 0; /* remove LF char */
+          /*Check for & in the end */
+          if(line[strlen(line)-1] == '&') {
+               waitForChild = 0; /*Not wait for Child */
+               line[strlen(line)-1]=' '; /*Remove & from the command */
+               }
           if(strlen(line)==0) continue;/*Empty command*/
           /*Check history */
           if(strcmp(line,"!!")==0) /*use previous command*/
@@ -163,6 +171,6 @@ void  main(void)
           parse(line, args, &output, &input, &pipePos);       /*   parse the line to args               */
           if (strcmp(args[0], "exit") == 0)  /* if user type exit then exit     */
                exit(0);            
-          execute(args,output,input,pipePos);           /* execute command */
+          execute(args,output,input,pipePos,waitForChild);           /* execute command */
      }
 }
